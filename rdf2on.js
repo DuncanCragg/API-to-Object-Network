@@ -3,8 +3,7 @@
 var http = require('http'),
     url = require('url');
 
-var onserver = 'http://localhost:';
-var obmashport = 8080;
+var rdf2server = 'http://localhost:';
 var rdf2onport = 8888;
 
 http.createServer(function(req, res) {
@@ -92,12 +91,11 @@ function getEnglishFromListIfPoss(obj, tag, subj, label){
     }
 }
 
-var dbpediaprefix    = 'http://dbpedia.org/resource/';
-var objectmashprefix = onserver+obmashport+'/object-mash/?o=';
-var dbpediaprefixon  = onserver+rdf2onport+'/dbpedia.org/data/'
+var dbpediaprefix = 'http://dbpedia.org/resource/';
+var rdf2prefix    = rdf2server+rdf2onport+'/dbpedia.org/data/'
 
 function fixup(s){
-    if(s.startethWith(dbpediaprefix)) return dbpediaprefixon+s.substring(dbpediaprefix.length)+'.json';
+    if(s.startethWith(dbpediaprefix)) return rdf2prefix+s.substring(dbpediaprefix.length)+'.json';
     return s;
 }
 
