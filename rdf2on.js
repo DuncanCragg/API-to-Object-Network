@@ -63,6 +63,7 @@ function rdf2on(rdf, subject, path, res){
         if(types){
             for(var i in types){ var type=types[i];
                 if(type.value=='http://dbpedia.org/ontology/Person') is='contact';
+                if(type.value=='http://dbpedia.org/ontology/Place') is='contact';
             }
         }
         if(is=='contact') obj=rdf2contact(rdf, subject, subj, types);
