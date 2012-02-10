@@ -4,7 +4,7 @@ var http = require('http'),
     url = require('url');
 
 var rdf2server = 'http://localhost:';
-var rdf2onport = 8888;
+var rdf2onport = process.env.PORT || 8888;
 
 http.createServer(function(req, res) {
 
