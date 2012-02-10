@@ -77,7 +77,7 @@ function rdf2contact(rdf, subject, subj, types){
     getEnglishFromListIfPoss(obj, 'bio',      subj, 'http://dbpedia.org/ontology/abstract');
     getEnglishFromListIfPoss(obj, 'bio',      subj, 'http://www.w3.org/2000/01/rdf-schema#comment');
     getEnglishFromListIfPoss(obj, 'photo',    subj, 'http://xmlns.com/foaf/0.1/depiction');
-    getEnglishFromListIfPoss(obj, 'parents',  subj, 'http://dbpedia.org/property/parents');
+    getEnglishFromListIfPoss(obj, 'parents',  subj, 'http://dbpedia.org/ontology/parent');
     return obj;
 }
 
