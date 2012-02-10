@@ -1,0 +1,5 @@
+.*.swp
+,*
+doc/local/
+*.log
+node_modules/
