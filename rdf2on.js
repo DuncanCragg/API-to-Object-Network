@@ -3,6 +3,10 @@
 var http = require('http'),
     url = require('url');
 
+var onserver = 'http://localhost:';
+var obmashport = 8080;
+var rdf2onport = 8888;
+
 http.createServer(function(req, res) {
 
     if(req.method !== 'GET'){
@@ -35,15 +39,15 @@ http.createServer(function(req, res) {
         }
         if(!subject){ returnError(res,'no describedby link header'); return; }
     
-        var data="";
+        var data='';
         pres.setEncoding('utf8');
-        pres.on('data', function (chunk) { data += chunk; });
-        pres.on("end", function(){ try{ rdf2on(JSON.parse(data), subject, path, res); }catch(e){ returnError(res,e); }});
+        pres.on('data', function(chunk) { data += chunk; });
+        pres.on('end',  function(){ try{ rdf2on(JSON.parse(data), subject, path, res); }catch(e){ returnError(res,e); }});
     });
     preq.on('error', function(e){ returnError(res,e); });
     preq.end();
 
-}).listen(8888);
+}).listen(rdf2onport);
 
 function returnError(res,e){
     res.writeHead(500);
@@ -69,27 +73,40 @@ function rdf2on(rdf, subject, path, res){
 
 function rdf2contact(rdf, subject, subj, types){
     var obj = { 'is': 'contact' };
-    var fullNames = subj["http://www.w3.org/2000/01/rdf-schema#label"];
-    if(fullNames){ for(var i in fullNames){ var fullName = fullNames[i];
-        if(fullName.lang=='en') obj.fullName = fullName.value;
-    }}
-    var bios = subj["http://dbpedia.org/ontology/abstract"];
-    if(bios){ for(var i in bios){ var bio = bios[i];
-        if(bio.lang=='en') obj.bio = bio.value;
-    }}
-    bios = subj["http://www.w3.org/2000/01/rdf-schema#comment"];
-    if(bios){ for(var i in bios){ var bio = bios[i];
-        if(bio.lang=='en') if(!obj.bio) obj.bio = bio.value; else obj.bio = [ obj.bio, bio.value ];
-    }}
+    getEnglishFromListIfPoss(obj, 'fullName', subj, 'http://www.w3.org/2000/01/rdf-schema#label');
+    getEnglishFromListIfPoss(obj, 'bio',      subj, 'http://dbpedia.org/ontology/abstract');
+    getEnglishFromListIfPoss(obj, 'bio',      subj, 'http://www.w3.org/2000/01/rdf-schema#comment');
+    getEnglishFromListIfPoss(obj, 'photo',    subj, 'http://xmlns.com/foaf/0.1/depiction');
+    getEnglishFromListIfPoss(obj, 'parents',  subj, 'http://dbpedia.org/property/parents');
     return obj;
+}
+
+function getEnglishFromListIfPoss(obj, tag, subj, label){
+    var list = subj[label];
+    if(!list || list.length==0) return;
+    for(var i in list){ var item = list[i];
+        if(item.lang=='en' || !item.lang){
+            if(!obj[tag]) obj[tag] = fixup(item.value);
+            else          obj[tag] = [ obj[tag], fixup(item.value) ];
+        }
+    }
+}
+
+var dbpediaprefix    = 'http://dbpedia.org/resource/';
+var objectmashprefix = onserver+obmashport+'/object-mash/?o=';
+var dbpediaprefixon  = onserver+rdf2onport+'/dbpedia.org/data/'
+
+function fixup(s){
+    if(s.startethWith(dbpediaprefix)) return dbpediaprefixon+s.substring(dbpediaprefix.length)+'.json';
+    return s;
 }
 
 function returnObject(obj, path, res){
 
     var headers = { 'Content-Type': 'application/json' };
 
-    headers["Access-Control-Allow-Origin"] = "*";
-    headers["Access-Control-Allow-Headers"] = "X-Requested-With";
+    headers['Access-Control-Allow-Origin'] = '*';
+    headers['Access-Control-Allow-Headers'] = 'X-Requested-With';
 
     res.writeHead(200, headers);
     res.end(JSON.stringify(obj, true, 2)+'\n');
