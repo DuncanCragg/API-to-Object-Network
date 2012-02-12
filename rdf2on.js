@@ -3,8 +3,11 @@
 var http = require('http'),
     url = require('url');
 
-var rdf2server = 'http://localhost:';
-var rdf2onport = process.env.PORT || 8888;
+var localport  = 8888;
+var rdf2onport = process.env.PORT || localport;
+var runningLocally = (rdf2onport == localport);
+
+var rdf2prefix = (runningLocally? 'http://localhost:'+localport: 'http://api2.the-object.net')+'/dbpedia.org/data/'
 
 http.createServer(function(req, res) {
 
@@ -93,7 +96,6 @@ function getEnglishFromListIfPoss(obj, tag, subj, label){
 }
 
 var dbpediaprefix = 'http://dbpedia.org/resource/';
-var rdf2prefix    = rdf2server+rdf2onport+'/dbpedia.org/data/'
 
 function fixup(s){
     if(s.startethWith(dbpediaprefix)) return rdf2prefix+s.substring(dbpediaprefix.length)+'.json';
