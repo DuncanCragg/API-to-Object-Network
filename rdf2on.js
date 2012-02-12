@@ -11,12 +11,8 @@ var rdf2prefix = (runningLocally? 'http://localhost:'+localport: 'http://api2.th
 
 http.createServer(function(req, res) {
 
-    if(req.method !== 'GET'){
-        res.writeHead(400);
-        res.end();
-        console.log('400 '+req.method);
-        return;
-    }
+    if(req.method !== 'GET'){ returnNotSupported(req,res); return; }
+
     var path = url.parse(req.url).pathname;
 
     console.log('GET '+path);
@@ -24,6 +20,9 @@ http.createServer(function(req, res) {
 
     var phost = path.split('/')[1];
     var ppath = path.substring(phost.length+1);
+
+    if(phost!='dbpedia.org'){ returnError(res,'that host is not supported'); return }
+
     var hostpath = { host: phost, path: ppath };
 
     console.log('Request: http://' + hostpath.host + hostpath.path);
@@ -51,10 +50,16 @@ http.createServer(function(req, res) {
 
 }).listen(rdf2onport);
 
+function returnNotSupported(req,res){
+    res.writeHead(400);
+    res.end();
+    console.log('400 '+req.method);
+}
+
 function returnError(res,e){
     res.writeHead(500);
     res.end();
-    console.log(e);
+    console.log('500 '+e);
 }
 
 function rdf2on(rdf, subject, path, res){
