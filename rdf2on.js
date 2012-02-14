@@ -4,10 +4,9 @@ var http = require('http'),
     url = require('url');
 
 var localport  = 8888;
-var rdf2onport = process.env.PORT || localport;
-var runningLocally = (rdf2onport == localport);
-
-var rdf2prefix = (runningLocally? 'http://localhost:'+localport: 'http://api2.the-object.net')+'/dbpedia.org/data/'
+var api2onport = process.env.PORT || localport;
+var runningLocally = (api2onport==localport);
+var hostport = (runningLocally? 'http://localhost:'+localport: 'http://api2.the-object.net');
 
 http.createServer(function(req, res) {
 
@@ -21,14 +20,23 @@ http.createServer(function(req, res) {
     var phost = path.split('/')[1];
     var ppath = path.substring(phost.length+1);
 
-    if(phost!='dbpedia.org'){ returnError(res,'that host is not supported'); return }
+    if(phost=='dbpedia') dbpedia(req, res, ppath);
+    else
+    if(phost=='twitter') twitter(req, res, ppath);
+    else returnError(res, phost+' is not a supported API'); 
 
-    var hostpath = { host: phost, path: ppath };
+}).listen(api2onport);
+
+// -------------------------------------------------------------
+
+function dbpedia(req, res, path){
+
+    var hostpath = { host: 'dbpedia.org', path: '/data'+path };
 
     console.log('Request: http://' + hostpath.host + hostpath.path);
 
     var preq=http.request(hostpath, function(pres){
-    
+
         console.log('HTTP/1.1 ' + pres.statusCode);
         console.log(JSON.stringify(pres.headers, true, 2));
 
@@ -47,19 +55,6 @@ http.createServer(function(req, res) {
     });
     preq.on('error', function(e){ returnError(res,e); });
     preq.end();
-
-}).listen(rdf2onport);
-
-function returnNotSupported(req,res){
-    res.writeHead(400);
-    res.end();
-    console.log('400 '+req.method);
-}
-
-function returnError(res,e){
-    res.writeHead(500);
-    res.end();
-    console.log('500 '+e);
 }
 
 function rdf2on(rdf, subject, path, res){
@@ -71,7 +66,7 @@ function rdf2on(rdf, subject, path, res){
         if(types){
             for(var i in types){ var type=types[i];
                 if(type.value=='http://dbpedia.org/ontology/Person') is='contact';
-                if(type.value=='http://dbpedia.org/ontology/Place') is='contact';
+                if(type.value=='http://dbpedia.org/ontology/Place' ) is='contact';
             }
         }
         if(is=='contact') obj=rdf2contact(rdf, subject, subj, types);
@@ -100,17 +95,51 @@ function getEnglishFromListIfPoss(obj, tag, subj, label){
     }
 }
 
-var dbpediaprefix = 'http://dbpedia.org/resource/';
+var dbpediaprefix  = 'http://dbpedia.org/resource/';
+var dbpedia2prefix = hostport+'/dbpedia/'
 
 function fixup(s){
-    if(s.startethWith(dbpediaprefix)) return rdf2prefix+s.substring(dbpediaprefix.length)+'.json';
+    if(s.startethWith(dbpediaprefix)) return dbpedia2prefix+s.substring(dbpediaprefix.length)+'.json';
     return s;
 }
 
+// -------------------------------------------------------------
+
+function twitter(req, res, path){
+
+    var hostpath = { host: 'api.twitter.com', path: '/1/users/show/'+path };
+
+    console.log('Request: http://' + hostpath.host + hostpath.path);
+/*
+    var preq=http.request(hostpath, function(pres){
+
+        console.log('HTTP/1.1 ' + pres.statusCode);
+        console.log(JSON.stringify(pres.headers, true, 2));
+
+        var data='';
+        pres.setEncoding('utf8');
+        pres.on('data', function(chunk) { data += chunk; });
+        pres.on('end',  function(){ try{ twit2on(JSON.parse(data), path, res); }catch(e){ returnError(res,e); }});
+    });
+    preq.on('error', function(e){ returnError(res,e); });
+    preq.end();
+*/
+}
+
+function twit2on(json, path, res){
+    var obj = { 'is': 'contact' };
+    returnObject(obj, path, res);
+}
+
+// -------------------------------------------------------------
+
 function returnObject(obj, path, res){
 
-    var headers = { 'Content-Type': 'application/json' };
-
+    var headers = { };
+    headers['Date'] = utcDate();
+    headers['Server'] = 'API-to-Object-Network';
+    headers['Content-Type'] = 'application/json';
+    headers['Cache-Control'] = 'max-age=1800';
     headers['Access-Control-Allow-Origin'] = '*';
     headers['Access-Control-Allow-Headers'] = 'X-Requested-With';
 
@@ -120,6 +149,33 @@ function returnObject(obj, path, res){
     console.log('200 '+path);
 }
 
+function returnNotSupported(req,res){
+    res.writeHead(400);
+    res.end();
+    console.log('400 '+req.method);
+}
+
+function returnError(res,e){
+    res.writeHead(500);
+    res.end();
+    console.log('500 '+e);
+}
+
+// -------------------------------------------------------------
+// Thanks to Mark Nottingham
+var dateCache;
+function utcDate(){
+    if(!dateCache){
+        var d=new Date();
+        dateCache = d.toUTCString();
+        setTimeout(function(){ dateCache=undefined; }, 1000-d.getMilliseconds());
+    }
+    return dateCache;
+}
+
+// Thanks to .. um .. StackOverflow..
 String.prototype.startethWith = function(str){ return this.slice(0, str.length)==str; };
 String.prototype.endethWith   = function(str){ return this.slice(  -str.length)==str; };
+
+// -------------------------------------------------------------
 
