@@ -107,10 +107,10 @@ function fixup(s){
 
 function twitter(req, res, path){
 
-    var hostpath = { host: 'api.twitter.com', path: '/1/users/show/'+path };
+    var hostpath = { host: 'api.twitter.com', path: '/1/users/show'+path };
 
     console.log('Request: http://' + hostpath.host + hostpath.path);
-/*
+
     var preq=http.request(hostpath, function(pres){
 
         console.log('HTTP/1.1 ' + pres.statusCode);
@@ -123,11 +123,41 @@ function twitter(req, res, path){
     });
     preq.on('error', function(e){ returnError(res,e); });
     preq.end();
-*/
 }
 
 function twit2on(json, path, res){
-    var obj = { 'is': 'contact' };
+/*
+{
+  "id": 680413,
+  "id_str": "680413",
+  "screen_name": "duncancragg",
+  "name": "Duncan Cragg",
+  "description": "Weaver of the Object Network ..",
+  "profile_image_url": "http://a1.twimg.com/profile_images/20315182/duncan-cragg-fonecam-small_normal.jpg",
+  "profile_image_url_https": "https://si0.twimg.com/profile_images/20315182/duncan-cragg-fonecam-small_normal.jpg",
+  "profile_background_image_url": "http://a1.twimg.com/images/themes/theme10/bg.gif",
+  "profile_background_image_url_https": "https://si0.twimg.com/images/themes/theme10/bg.gif",
+  "location": "London",
+  "time_zone": "London",
+  "url": "http://duncan-cragg.org/blog/",
+  "status": {
+    "place": null,
+    "coordinates": null,
+    "geo": null,
+    "created_at": "Mon Feb 13 13:32:43 +0000 2012",
+    "text": "@adamd Thanks, dude! :-)"
+  }
+}
+*/
+    var obj = {
+        'is': 'contact',
+        'fullName': json.name,
+        'photo': json.profile_image_url,
+        'location': json.location,
+        'webURL': [ json.url, 'http://twitter.com/'+json.screen_name ],
+        'bio': json.description,
+        'status': json.status.text
+    };
     returnObject(obj, path, res);
 }
 
