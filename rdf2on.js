@@ -8,17 +8,20 @@ var api2onport = process.env.PORT || localport;
 var runningLocally = (api2onport==localport);
 var hostport = (runningLocally? 'http://localhost:'+localport: 'http://api2.the-object.net');
 
+var verboselogging = false;
+var logging = true;
+
 http.createServer(function(req, res) {
 
     if(req.method !== 'GET'){ returnNotSupported(req,res); return; }
 
     var path = url.parse(req.url).pathname;
 
-    console.log('GET '+path);
-    console.log(JSON.stringify(req.headers, true, 2));
+    if(logging) console.log('GET '+path);
+    if(verboselogging) console.log(JSON.stringify(req.headers, true, 2));
 
     var phost = path.split('/')[1];
-    var ppath = path.substring(phost.length+1);
+    var ppath = path.substring(phost.length+2);
 
     if(phost=='dbpedia') dbpedia(req, res, ppath);
     else
@@ -31,14 +34,14 @@ http.createServer(function(req, res) {
 
 function dbpedia(req, res, path){
 
-    var hostpath = { host: 'dbpedia.org', path: '/data'+path };
+    var hostpath = { host: 'dbpedia.org', path: '/data/'+path };
 
-    console.log('Request: http://' + hostpath.host + hostpath.path);
+    if(logging) console.log('Request: http://' + hostpath.host + hostpath.path);
 
     var preq=http.request(hostpath, function(pres){
 
-        console.log('HTTP/1.1 ' + pres.statusCode);
-        console.log(JSON.stringify(pres.headers, true, 2));
+        if(logging) console.log('HTTP/1.1 ' + pres.statusCode);
+        if(verboselogging) console.log(JSON.stringify(pres.headers, true, 2));
 
         if(!pres.headers.link){ returnError(res,'no link header'); return; }
         var subject=null;
@@ -89,8 +92,17 @@ function getEnglishFromListIfPoss(obj, tag, subj, label){
     if(!list || list.length==0) return;
     for(var i in list){ var item = list[i];
         if(item.lang=='en' || !item.lang){
-            if(!obj[tag]) obj[tag] = fixup(item.value);
-            else          obj[tag] = [ obj[tag], fixup(item.value) ];
+            var fixedItem = fixup(item.value);
+            if(!obj[tag]){
+                obj[tag] = fixedItem;
+            }
+            else if(obj[tag].startethWith(fixedItem)){
+            }
+            else if(fixedItem.startethWith(obj[tag])){
+                obj[tag] = fixedItem;
+            }else{
+                obj[tag] = [ obj[tag], fixedItem ];
+            }
         }
     }
 }
@@ -107,58 +119,74 @@ function fixup(s){
 
 function twitter(req, res, path){
 
-    var hostpath = { host: 'api.twitter.com', path: '/1/users/show'+path };
+    var hostpathuser = { host: 'api.twitter.com', path: '/1/users/show/'+path };
 
-    console.log('Request: http://' + hostpath.host + hostpath.path);
+    if(logging) console.log('Request: http://' + hostpathuser.host + hostpathuser.path);
 
-    var preq=http.request(hostpath, function(pres){
+    var preq=http.request(hostpathuser, function(pres){
 
-        console.log('HTTP/1.1 ' + pres.statusCode);
-        console.log(JSON.stringify(pres.headers, true, 2));
+        if(logging) console.log('HTTP/1.1 ' + pres.statusCode);
+        if(verboselogging) console.log(JSON.stringify(pres.headers, true, 2));
 
         var data='';
         pres.setEncoding('utf8');
         pres.on('data', function(chunk) { data += chunk; });
-        pres.on('end',  function(){ try{ twit2on(JSON.parse(data), path, res); }catch(e){ returnError(res,e); }});
+        pres.on('end',  function(){ try{ twit2onuser(JSON.parse(data), path, res); }catch(e){ returnError(res,e); }});
     });
     preq.on('error', function(e){ returnError(res,e); });
     preq.end();
 }
 
-function twit2on(json, path, res){
-/*
-{
-  "id": 680413,
-  "id_str": "680413",
-  "screen_name": "duncancragg",
-  "name": "Duncan Cragg",
-  "description": "Weaver of the Object Network ..",
-  "profile_image_url": "http://a1.twimg.com/profile_images/20315182/duncan-cragg-fonecam-small_normal.jpg",
-  "profile_image_url_https": "https://si0.twimg.com/profile_images/20315182/duncan-cragg-fonecam-small_normal.jpg",
-  "profile_background_image_url": "http://a1.twimg.com/images/themes/theme10/bg.gif",
-  "profile_background_image_url_https": "https://si0.twimg.com/images/themes/theme10/bg.gif",
-  "location": "London",
-  "time_zone": "London",
-  "url": "http://duncan-cragg.org/blog/",
-  "status": {
-    "place": null,
-    "coordinates": null,
-    "geo": null,
-    "created_at": "Mon Feb 13 13:32:43 +0000 2012",
-    "text": "@adamd Thanks, dude! :-)"
-  }
+function twit2onuser(json, path, res){
+
+    var name = path.substring(0,path.length-5);
+    var tpath;
+    var match = RegExp('[0-9]\+').exec(name);
+    if(match) tpath = '/1/friends/ids.json?cursor=-1&user_id='+name;
+    else      tpath = '/1/friends/ids.json?cursor=-1&screen_name='+name;
+
+    var hostpathfoll = { host: 'api.twitter.com', path: tpath };
+
+    if(logging) console.log('Request: http://' + hostpathfoll.host + hostpathfoll.path);
+
+    var preq=http.request(hostpathfoll, function(pres){
+
+        if(logging) console.log('HTTP/1.1 ' + pres.statusCode);
+        if(verboselogging) console.log(JSON.stringify(pres.headers, true, 2));
+
+        var data='';
+        pres.setEncoding('utf8');
+        pres.on('data', function(chunk) { data += chunk; });
+        pres.on('end',  function(){ try{ twit2onfoll(json, JSON.parse(data), path, res); }catch(e){ returnError(res,e); }});
+    });
+    preq.on('error', function(e){ returnError(res,e); });
+    preq.end();
 }
-*/
+
+function twit2onfoll(userjson, folljson, path, res){
+
     var obj = {
         'is': 'contact',
-        'fullName': json.name,
-        'photo': json.profile_image_url,
-        'location': json.location,
-        'webURL': [ json.url, 'http://twitter.com/'+json.screen_name ],
-        'bio': json.description,
-        'status': json.status.text
+        'fullName': userjson.name,
+        'photo': userjson.profile_image_url,
+        'location': userjson.location,
+        'webURL': [ userjson.url, 'http://twitter.com/'+userjson.screen_name ],
+        'bio': userjson.description,
+        'following': followingList(folljson.ids)
     };
+    if(userjson.status) obj.status = userjson.status.text,
     returnObject(obj, path, res);
+}
+
+var twitter2prefix = hostport+'/twitter/'
+
+function followingList(list){
+    r = [];
+    for(var i in list){ var id = list[i];
+        r.push(twitter2prefix+id+'.json');
+        if(i==4) break;
+    }
+    return r;
 }
 
 // -------------------------------------------------------------
