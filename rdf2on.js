@@ -17,26 +17,30 @@ http.createServer(function(req, res) {
 
     var path = url.parse(req.url).pathname;
 
-    if(logging) console.log('GET '+path);
+    if(logging) console.log('---------------\nGET '+path);
     if(verboselogging) console.log(JSON.stringify(req.headers, true, 2));
 
-    var phost = path.split('/')[1];
-    var ppath = path.substring(phost.length+2);
+    if(req.headers["cache-control"] != "no-cache"){
+        var obj=cacheGet(path); if(obj){ returnObject(obj, path, res); return; }
+    }
 
-    if(phost=='dbpedia') dbpedia(req, res, ppath);
+    var apiname = path.split('/')[1];
+    var id = path.substring(apiname.length+2);
+
+    if(apiname=='dbpedia') dbpedia(path, res, id);
     else
-    if(phost=='twitter') twitter(req, res, ppath);
-    else returnError(res, phost+' is not a supported API'); 
+    if(apiname=='twitter') twitter(path, res, id);
+    else returnError(res, apiname+' is not a supported API'); 
 
 }).listen(api2onport);
 
 // -------------------------------------------------------------
 
-function dbpedia(req, res, path){
+function dbpedia(path, res, id){
 
-    var hostpath = { host: 'dbpedia.org', path: '/data/'+path };
+    var hostpath = { host: 'dbpedia.org', path: '/data/'+id };
 
-    if(logging) console.log('Request: http://' + hostpath.host + hostpath.path);
+    if(logging) console.log('request: http://' + hostpath.host + hostpath.path);
 
     var preq=http.request(hostpath, function(pres){
 
@@ -117,11 +121,11 @@ function fixup(s){
 
 // -------------------------------------------------------------
 
-function twitter(req, res, path){
+function twitter(path, res, id){
 
-    var hostpathuser = { host: 'api.twitter.com', path: '/1/users/show/'+path };
+    var hostpathuser = { host: 'api.twitter.com', path: '/1/users/show/'+id };
 
-    if(logging) console.log('Request: http://' + hostpathuser.host + hostpathuser.path);
+    if(logging) console.log('request: http://' + hostpathuser.host + hostpathuser.path);
 
     var preq=http.request(hostpathuser, function(pres){
 
@@ -131,15 +135,15 @@ function twitter(req, res, path){
         var data='';
         pres.setEncoding('utf8');
         pres.on('data', function(chunk) { data += chunk; });
-        pres.on('end',  function(){ try{ twit2onuser(JSON.parse(data), path, res); }catch(e){ returnError(res,e); }});
+        pres.on('end',  function(){ try{ twit2onuser(JSON.parse(data), id, path, res); }catch(e){ returnError(res,e); }});
     });
     preq.on('error', function(e){ returnError(res,e); });
     preq.end();
 }
 
-function twit2onuser(json, path, res){
+function twit2onuser(json, id, path, res){
 
-    var name = path.substring(0,path.length-5);
+    var name = id.substring(0,id.length-5);
     var tpath;
     var match = RegExp('[0-9]\+').exec(name);
     if(match) tpath = '/1/friends/ids.json?cursor=-1&user_id='+name;
@@ -147,7 +151,7 @@ function twit2onuser(json, path, res){
 
     var hostpathfoll = { host: 'api.twitter.com', path: tpath };
 
-    if(logging) console.log('Request: http://' + hostpathfoll.host + hostpathfoll.path);
+    if(logging) console.log('request: http://' + hostpathfoll.host + hostpathfoll.path);
 
     var preq=http.request(hostpathfoll, function(pres){
 
@@ -193,6 +197,8 @@ function followingList(list){
 
 function returnObject(obj, path, res){
 
+    cachePut(path, obj);
+
     var headers = { };
     headers['Date'] = utcDate();
     headers['Server'] = 'API-to-Object-Network';
@@ -217,6 +223,31 @@ function returnError(res,e){
     res.writeHead(500);
     res.end();
     console.log('500 '+e);
+}
+
+// -------------------------------------------------------------
+
+var cache = {};
+var fifo  = [];
+
+function cacheGet(path){
+    var hit = cache[path];
+    if(hit) console.log('cache hit for '+path);
+    return hit;
+}
+
+function cachePut(path, obj){
+    cache[path]=obj;
+    var i = fifo.indexOf(path);
+    if(i!= -1) fifo.splice(i, 1);
+    fifo.push(path);
+    var cacheSize = Object.keys(cache).length;
+    if(cacheSize!=fifo.length) console.log('cache != fifo: '+cacheSize+'!='+fifo.length);
+    if(fifo.length==100){
+        var drop=fifo.shift();
+        delete cache[drop];
+        console.log('cache full, dropped '+drop);
+    }
 }
 
 // -------------------------------------------------------------
