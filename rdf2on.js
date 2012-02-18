@@ -239,11 +239,6 @@ function lany2onevent(eventhtml, id, path, res){
                   putLinkByClass(eventjson, 'webURL',  doc, 'twitter-url');
                   putLinkByClass(eventjson, 'webURL',  doc, 'twitter-search');
 
-                  var attendees=getByClass(doc, 'user-list');
-                  if(attendees){
-                      var list=attendees.getElementsByTagName('li');
-                      if(list.length) eventjson.attendees=attendeeList(list);
-                  }
                   var venue=doc.getElementsByClassName('venue');
                   if(venue.length){
                       var link;
@@ -255,6 +250,11 @@ function lany2onevent(eventhtml, id, path, res){
                       if(pp){ var addr=pp.textContent;
                           if(addr) addToObject(eventjson, 'location', { 'is': 'contact', 'address': { 'street': addr.trim() }, '%more': link } );
                       }
+                  }
+                  var attendees=getByClass(doc, 'user-list');
+                  if(attendees){
+                      var list=attendees.getElementsByTagName('li');
+                      if(list.length) eventjson.attendees=attendeeList(list);
                   }
     });
 
