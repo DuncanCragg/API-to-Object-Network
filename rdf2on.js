@@ -1,7 +1,8 @@
 #!/usr/bin/node
 
 var http = require('http'),
-    url = require('url');
+    url = require('url'),
+    jsdom = require('jsdom');
 
 var localport  = 8888;
 var api2onport = process.env.PORT || localport;
@@ -30,7 +31,11 @@ http.createServer(function(req, res) {
     if(apiname=='dbpedia') dbpedia(path, res, id);
     else
     if(apiname=='twitter') twitter(path, res, id);
-    else returnError(res, apiname+' is not a supported API'); 
+    else
+    if(apiname=='lanyrd' ) lanyrd(path, res, id);
+    else{
+        returnError(res, apiname+' is not a supported API'); 
+    }
 
 }).listen(api2onport);
 
@@ -54,7 +59,7 @@ function dbpedia(path, res, id){
             if(link.indexOf('describedby')!= -1) subject=link.split('>')[0].substring(2);
         }
         if(!subject){ returnError(res,'no describedby link header'); return; }
-    
+
         var data='';
         pres.setEncoding('utf8');
         pres.on('data', function(chunk) { data += chunk; });
@@ -93,7 +98,7 @@ function rdf2contact(rdf, subject, subj, types){
 
 function getEnglishFromListIfPoss(obj, tag, subj, label){
     var list = subj[label];
-    if(!list || list.length==0) return;
+    if(!list) return;
     for(var i in list){ var item = list[i];
         if(item.lang=='en' || !item.lang){
             var fixedItem = fixup(item.value);
@@ -123,11 +128,11 @@ function fixup(s){
 
 function twitter(path, res, id){
 
-    var hostpathuser = { host: 'api.twitter.com', path: '/1/users/show/'+id };
+    var hostpath = { host: 'api.twitter.com', path: '/1/users/show/'+id };
 
-    if(logging) console.log('request: http://' + hostpathuser.host + hostpathuser.path);
+    if(logging) console.log('request: http://' + hostpath.host + hostpath.path);
 
-    var preq=http.request(hostpathuser, function(pres){
+    var preq=http.request(hostpath, function(pres){
 
         if(logging) console.log('HTTP/1.1 ' + pres.statusCode);
         if(verboselogging) console.log(JSON.stringify(pres.headers, true, 2));
@@ -149,11 +154,11 @@ function twit2onuser(json, id, path, res){
     if(match) tpath = '/1/friends/ids.json?cursor=-1&user_id='+name;
     else      tpath = '/1/friends/ids.json?cursor=-1&screen_name='+name;
 
-    var hostpathfoll = { host: 'api.twitter.com', path: tpath };
+    var hostpath = { host: 'api.twitter.com', path: tpath };
 
-    if(logging) console.log('request: http://' + hostpathfoll.host + hostpathfoll.path);
+    if(logging) console.log('request: http://' + hostpath.host + hostpath.path);
 
-    var preq=http.request(hostpathfoll, function(pres){
+    var preq=http.request(hostpath, function(pres){
 
         if(logging) console.log('HTTP/1.1 ' + pres.statusCode);
         if(verboselogging) console.log(JSON.stringify(pres.headers, true, 2));
@@ -191,6 +196,137 @@ function followingList(list){
         if(i==4) break;
     }
     return r;
+}
+
+// -------------------------------------------------------------
+
+var lanyrd2prefix = hostport+'/lanyrd'
+
+function lanyrd(path, res, id){
+
+    if(id.startethWith('venue')){ returnError(res,'no venues!'); return; }
+
+    var hostpath = { host: 'lanyrd.com', path: '/'+id.substring(0,id.length-5)+'/' };
+
+    if(logging) console.log('request: http://' + hostpath.host + hostpath.path);
+
+    var preq=http.request(hostpath, function(pres){
+
+        if(logging) console.log('HTTP/1.1 ' + pres.statusCode);
+        if(verboselogging) console.log(JSON.stringify(pres.headers, true, 2));
+
+        var data='';
+        pres.setEncoding('utf8');
+        pres.on('data', function(chunk) { data += chunk; });
+        pres.on('end',  function(){ try{ lany2onevent(data, id, path, res); }catch(e){ returnError(res,e); }});
+    });
+    preq.on('error', function(e){ returnError(res,e); });
+    preq.end();
+}
+
+function lany2onevent(eventhtml, id, path, res){
+
+    var eventjson = { 'is': 'event' };
+    var html = eventhtml.replace('icon twitter','twitter-url');
+
+    jsdom.env({ html: html}, function(err, window){ var doc = window.document;
+
+                  putTextByClass(eventjson, 'title',   doc, 'summary');
+                  putTextByClass(eventjson, 'content', doc, 'tagline');
+                  putAttrByClass(eventjson, 'start',   doc, 'dtstart', 'title');
+                  putAttrByClass(eventjson, 'end',     doc, 'dtend',   'title');
+                  putLinkByClass(eventjson, 'webURL',  doc, 'website');
+                  putLinkByClass(eventjson, 'webURL',  doc, 'twitter-url');
+                  putLinkByClass(eventjson, 'webURL',  doc, 'twitter-search');
+
+                  var attendees=getByClass(doc, 'user-list');
+                  if(attendees){
+                      var list=attendees.getElementsByTagName('li');
+                      if(list.length) eventjson.attendees=attendeeList(list);
+                  }
+                  var venue=doc.getElementsByClassName('venue');
+                  if(venue.length){
+                      var link;
+                      var h3=getByTag(venue[0],'h3');
+                      if(h3){ var a=getByTag(h3,'a');
+                          if(a) link=lanyrd2prefix+a.getAttribute('href')+'venue.json'
+                      }
+                      var pp=getByTag(venue[0],'p',1);
+                      if(pp){ var addr=pp.textContent;
+                          if(addr) addToObject(eventjson, 'location', { 'is': 'contact', 'address': { 'street': addr.trim() }, '%more': link } );
+                      }
+                  }
+    });
+
+    returnObject(eventjson, path, res);
+}
+
+function attendeeList(list){
+    r = [];
+    for(var i in list){ var li = list[i];
+        var a=li.getElementsByTagName('a');
+        if(!a.length) continue;
+        var l=a[0].getAttribute('href');
+        if(!l) continue;
+        var t=l.substring(9,l.length-1);
+        r.push(twitter2prefix+t+'.json');
+        if(i==4) break;
+    }
+    return r;
+}
+
+// -------------------------------------------------------------
+
+function getByTag(el,t,n){
+    var e=el.getElementsByTagName(t);
+    if(!e.length) return null;
+    return e[n? n: 0];
+}
+
+function getByClass(doc,c){
+    var e=doc.getElementsByClassName(c);
+    if(!e.length) return null;
+    return e[0];
+}
+
+function getLinkByClass(doc,c){
+    var e=getByClass(doc,c);
+    if(!e) return null;
+    return e.getAttribute('href');
+}
+
+function putTextByClass(o,t,doc,c){
+    var e=getByClass(doc,c);
+    if(!e) return o;
+    var x=e.textContent;
+    if(!x) return o;
+    addToObject(o,t,x);
+    return o;
+}
+
+function putLinkByClass(o,t,doc,c){
+    var l=getLinkByClass(doc,c);
+    if(!l) return o;
+    addToObject(o,t,l);
+}
+
+function putAttrByClass(o,t,doc,c,a){
+    var e=getByClass(doc,c);
+    if(!e) return o;
+    var v=e.getAttribute(a);
+    if(!v) return o;
+    addToObject(o,t,v);
+}
+
+function addToObject(o,t,v){
+    if(o[t]===undefined) o[t]=v;
+    else
+    if(o[t].constructor===String) o[t] = [ o[t], v ]
+    else
+    if(o[t].constructor===Array) o[t].push(v);
+    else
+       o[t]=v;
+    return o;
 }
 
 // -------------------------------------------------------------
@@ -251,7 +387,7 @@ function cachePut(path, obj){
 }
 
 // -------------------------------------------------------------
-// Thanks to Mark Nottingham
+// Thanks to Mark Nottingham for this nice data cache
 var dateCache;
 function utcDate(){
     if(!dateCache){
