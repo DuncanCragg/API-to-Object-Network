@@ -335,6 +335,8 @@ function returnObject(obj, path, res){
 
     cachePut(path, obj);
 
+    var body = JSON.stringify(obj, true, 2)+'\n';
+
     var headers = { };
     headers['Date'] = utcDate();
     headers['Server'] = 'API-to-Object-Network';
@@ -342,9 +344,11 @@ function returnObject(obj, path, res){
     headers['Cache-Control'] = 'max-age=1800';
     headers['Access-Control-Allow-Origin'] = '*';
     headers['Access-Control-Allow-Headers'] = 'X-Requested-With';
+    headers['Content-Length'] = body.length;
 
     res.writeHead(200, headers);
-    res.end(JSON.stringify(obj, true, 2)+'\n');
+    res.write(body); 
+    res.end();
 
     console.log('200 '+path);
 }
