@@ -344,7 +344,7 @@ function returnObject(obj, path, res){
     headers['Cache-Control'] = 'max-age=1800';
     headers['Access-Control-Allow-Origin'] = '*';
     headers['Access-Control-Allow-Headers'] = 'X-Requested-With';
-    headers['Content-Length'] = body.length;
+    headers['Content-Length'] = Buffer.byteLength(body,'utf8');
 
     res.writeHead(200, headers);
     res.write(body); 
