@@ -179,7 +179,7 @@ function twit2onfoll(userjson, folljson, path, res){
         'fullName': userjson.name,
         'photo': userjson.profile_image_url,
         'location': userjson.location,
-        'webURL': [ userjson.url, 'http://twitter.com/'+userjson.screen_name ],
+        'webView': [ userjson.url, 'http://twitter.com/'+userjson.screen_name ],
         'bio': userjson.description,
         'following': followingList(folljson.ids)
     };
@@ -235,9 +235,9 @@ function lany2onevent(eventhtml, id, path, res){
                   putTextByClass(eventjson, 'content', doc, 'tagline');
                   putAttrByClass(eventjson, 'start',   doc, 'dtstart', 'title');
                   putAttrByClass(eventjson, 'end',     doc, 'dtend',   'title');
-                  putLinkByClass(eventjson, 'webURL',  doc, 'website');
-                  putLinkByClass(eventjson, 'webURL',  doc, 'twitter-url');
-                  putLinkByClass(eventjson, 'webURL',  doc, 'twitter-search');
+                  putLinkByClass(eventjson, 'webView', doc, 'website');
+                  putLinkByClass(eventjson, 'webView', doc, 'twitter-url');
+                  putLinkByClass(eventjson, 'webView', doc, 'twitter-search');
 
                   var venue=doc.getElementsByClassName('venue');
                   if(venue.length){
