@@ -343,7 +343,7 @@ function returnObject(obj, path, res){
     headers['Content-Type'] = 'application/json';
     headers['Cache-Control'] = 'max-age=1800';
     headers['Access-Control-Allow-Origin'] = '*';
-    headers['Access-Control-Allow-Headers'] = 'X-Requested-With';
+    headers['Access-Control-Allow-Headers'] = 'X-Requested-With, Cache-Notify';
     headers['Content-Length'] = Buffer.byteLength(body,'utf8');
 
     res.writeHead(200, headers);
