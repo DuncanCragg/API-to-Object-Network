@@ -14,12 +14,14 @@ var logging = true;
 
 http.createServer(function(req, res) {
 
-    if(req.method !== 'GET'){ returnNotSupported(req,res); return; }
+    if(req.method !== 'GET' && req.method !== 'OPTIONS'){ returnNotSupported(req,res); return; }
 
     var path = url.parse(req.url).pathname;
 
-    if(logging) console.log('---------------\nGET '+path);
+    if(logging) console.log('---------------\n'+req.method+' '+path);
     if(verboselogging) console.log(JSON.stringify(req.headers, true, 2));
+
+    if((req.method==='OPTIONS')){ returnObject(null, path, res); return; }
 
     if(req.headers["cache-control"] != "no-cache"){
         var obj=cacheGet(path); if(obj){ returnObject(obj, path, res); return; }
@@ -333,10 +335,11 @@ function addToObject(o,t,v){
 
 function returnObject(obj, path, res){
 
-    cachePut(path, obj);
-
-    var body = JSON.stringify(obj, true, 2)+'\n';
-
+    var body=null;
+    if(obj){
+        cachePut(path, obj);
+        body = JSON.stringify(obj, true, 2)+'\n';
+    }
     var headers = { };
     headers['Date'] = utcDate();
     headers['Server'] = 'API-to-Object-Network';
@@ -344,10 +347,10 @@ function returnObject(obj, path, res){
     headers['Cache-Control'] = 'max-age=1800';
     headers['Access-Control-Allow-Origin'] = '*';
     headers['Access-Control-Allow-Headers'] = 'X-Requested-With, Cache-Notify';
-    headers['Content-Length'] = Buffer.byteLength(body,'utf8');
+    headers['Content-Length'] = body? Buffer.byteLength(body,'utf8'): 0;
 
     res.writeHead(200, headers);
-    res.write(body); 
+    if(body) res.write(body); 
     res.end();
 
     console.log('200 '+path);
