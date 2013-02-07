@@ -90,11 +90,11 @@ function rdf2on(rdf, subject, path, res){
 
 function rdf2contact(rdf, subject, subj, types){
     var obj = { 'is': 'contact' };
-    getEnglishFromListIfPoss(obj, 'fullName', subj, 'http://www.w3.org/2000/01/rdf-schema#label');
-    getEnglishFromListIfPoss(obj, 'bio',      subj, 'http://dbpedia.org/ontology/abstract');
-    getEnglishFromListIfPoss(obj, 'bio',      subj, 'http://www.w3.org/2000/01/rdf-schema#comment');
-    getEnglishFromListIfPoss(obj, 'photo',    subj, 'http://xmlns.com/foaf/0.1/depiction');
-    getEnglishFromListIfPoss(obj, 'parents',  subj, 'http://dbpedia.org/ontology/parent');
+    getEnglishFromListIfPoss(obj, 'full-name', subj, 'http://www.w3.org/2000/01/rdf-schema#label');
+    getEnglishFromListIfPoss(obj, 'bio',       subj, 'http://dbpedia.org/ontology/abstract');
+    getEnglishFromListIfPoss(obj, 'bio',       subj, 'http://www.w3.org/2000/01/rdf-schema#comment');
+    getEnglishFromListIfPoss(obj, 'photo',     subj, 'http://xmlns.com/foaf/0.1/depiction');
+    getEnglishFromListIfPoss(obj, 'parents',   subj, 'http://dbpedia.org/ontology/parent');
     return obj;
 }
 
@@ -178,10 +178,10 @@ function twit2onfoll(userjson, folljson, path, res){
 
     var obj = {
         'is': 'contact',
-        'fullName': userjson.name,
+        'full-name': userjson.name,
         'photo': userjson.profile_image_url,
         'location': userjson.location,
-        'webView': [ userjson.url, 'http://twitter.com/'+userjson.screen_name ],
+        'web-view': [ userjson.url, 'http://twitter.com/'+userjson.screen_name ],
         'bio': userjson.description,
         'following': followingList(folljson.ids)
     };
@@ -233,13 +233,13 @@ function lany2onevent(eventhtml, id, path, res){
 
     jsdom.env({ html: html}, function(err, window){ var doc = window.document;
 
-                  putTextByClass(eventjson, 'title',   doc, 'summary');
-                  putTextByClass(eventjson, 'content', doc, 'tagline');
-                  putAttrByClass(eventjson, 'start',   doc, 'dtstart', 'title');
-                  putAttrByClass(eventjson, 'end',     doc, 'dtend',   'title');
-                  putLinkByClass(eventjson, 'webView', doc, 'website');
-                  putLinkByClass(eventjson, 'webView', doc, 'twitter-url');
-                  putLinkByClass(eventjson, 'webView', doc, 'twitter-search');
+                  putTextByClass(eventjson, 'title',    doc, 'summary');
+                  putTextByClass(eventjson, 'content',  doc, 'tagline');
+                  putAttrByClass(eventjson, 'start',    doc, 'dtstart', 'title');
+                  putAttrByClass(eventjson, 'end',      doc, 'dtend',   'title');
+                  putLinkByClass(eventjson, 'web-view', doc, 'website');
+                  putLinkByClass(eventjson, 'web-view', doc, 'twitter-url');
+                  putLinkByClass(eventjson, 'web-view', doc, 'twitter-search');
 
                   var venue=doc.getElementsByClassName('venue');
                   if(venue.length){
