@@ -250,7 +250,7 @@ function lany2onevent(eventhtml, id, path, res){
                       }
                       var pp=getByTag(venue[0],'p',1);
                       if(pp){ var addr=pp.textContent;
-                          if(addr) addToObject(eventjson, 'location', { 'is': 'contact', 'address': { 'street': addr.trim() }, '%more': link } );
+                          if(addr) addToObject(eventjson, 'location', { 'is': 'contact', 'address': { 'street': addr.trim() }, 'More': link } );
                       }
                   }
                   var attendees=getByClass(doc, 'user-list');
